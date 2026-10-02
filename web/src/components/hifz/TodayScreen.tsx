@@ -78,11 +78,24 @@ export default function TodayScreen() {
           )}
         </div>
         <aside className="space-y-6">
+          <Link
+            href="/mushaf"
+            className="group flex items-center gap-4 rounded-[24px] border border-teal/30 bg-surface p-5 transition-all hover:-translate-y-0.5 hover:border-teal/60 glow-soft"
+          >
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-teal text-bg">
+              <BookOpen size={22} />
+            </span>
+            <span className="flex-1">
+              <span className="block font-serif text-xl">Open the mushaf</span>
+              <span className="block text-xs text-parchment-muted">Any surah, any page. What you know stays covered.</span>
+            </span>
+            <ArrowRight size={16} className="text-teal transition-transform group-hover:translate-x-0.5" />
+          </Link>
           <WhyCard journey={journey} />
           <div className="rounded-[24px] border border-border bg-surface p-5">
             <div className="mb-3 flex items-baseline justify-between">
-              <h2 className="font-serif text-lg">Your mushaf</h2>
-              <Link href="/mushaf" className="text-xs text-teal hover:underline">Open</Link>
+              <h2 className="font-serif text-lg">Progress</h2>
+              <Link href="/progress" className="text-xs text-teal hover:underline">Open</Link>
             </div>
             <MiniHeatmap states={journey.states} />
             <HeatLegend className="mt-3" />

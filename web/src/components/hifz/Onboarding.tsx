@@ -28,6 +28,9 @@ export default function Onboarding() {
   const [direction, setDirection] = useState<Direction>("backward");
   const [startSurah, setStartSurah] = useState<number | null>(null);
   const [claims, setClaims] = useState<Record<number, Claim>>({});
+  const [upTo, setUpTo] = useState<Record<number, number>>({});
+  const [partSurah, setPartSurah] = useState(2);
+  const [partAyah, setPartAyah] = useState(25);
   const [minutes, setMinutes] = useState(90);
   const [days, setDays] = useState([0, 1, 2, 3, 4, 5, 6]);
   const [sabaqTime, setSabaqTime] = useState("After Fajr");
@@ -41,6 +44,7 @@ export default function Onboarding() {
   }, [data, router]);
 
   const i = STEPS.indexOf(step);
+  const ayahCount = (surah: number) => index?.bySurah.get(surah)?.at(-1)?.a2 ?? 286;
   const go = (d: number) => setStep(STEPS[Math.max(0, Math.min(STEPS.length - 1, i + d))]);
 
   const surahOrder = useMemo(() => {
@@ -58,7 +62,10 @@ export default function Onboarding() {
   const finish = () => {
     if (!index) return;
     finishing.current = true;
-    const start = startSurah ? index.bySurah.get(startSurah)?.[0] ?? null : null;
+    // Part-way through one surah and no other starting point chosen: carry on from there
+    const partial = Object.keys(upTo).map(Number);
+    const from = startSurah ?? (partial.length === 1 ? partial[0] : null);
+    const start = from ? index.bySurah.get(from)?.[0] ?? null : null;
     updateSettings((s) => ({
       ...s,
       direction,
@@ -68,7 +75,7 @@ export default function Onboarding() {
       sabaqTime,
       sabaqLines,
     }));
-    updateProfile((p) => ({ ...p, why, claims, onboarded: true, introSeen: true }));
+    updateProfile((p) => ({ ...p, why, claims, claimUpTo: upTo, onboarded: true, introSeen: true }));
     router.push("/session/sabaq");
   };
 
@@ -152,7 +159,10 @@ export default function Onboarding() {
                           const next = CLAIM_CYCLE[(CLAIM_CYCLE.indexOf(prev[id] ?? null) + 1) % CLAIM_CYCLE.length];
                           const out = { ...prev };
                           if (next) out[id] = next;
-                          else delete out[id];
+                          else {
+                            delete out[id];
+                            setUpTo(({ [id]: _, ...rest }) => rest);
+                          }
                           return out;
                         })
                       }
@@ -161,6 +171,7 @@ export default function Onboarding() {
                       }`}
                     >
                       <span className="text-xs opacity-70">{id}</span> {SURAHS[id - 1].name}
+                      {upTo[id] && <span className="text-[10px] opacity-80">1–{upTo[id]}</span>}
                       {c && <span className="text-[10px] uppercase tracking-wide opacity-80">{c === "forgotten" ? "faded" : c}</span>}
                     </button>
                   );
@@ -171,7 +182,43 @@ export default function Onboarding() {
                   </button>
                 )}
               </div>
-              <button onClick={() => (setClaims({}), go(1))} className="mt-6 flex items-center gap-2 self-start text-sm text-parchment-muted hover:text-teal">
+              <div className="mt-6 rounded-[22px] border border-border bg-surface/80 p-4">
+                <p className="text-sm font-medium">Know part of a surah?</p>
+                <p className="text-xs text-parchment-muted">Your sabaq will carry on right after it.</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                  <select value={partSurah} onChange={(e) => setPartSurah(Number(e.target.value))} className="h-10 rounded-xl border border-border bg-bg px-3">
+                    {SURAHS.map((s) => (
+                      <option key={s.id} value={s.id}>{s.id}. {s.name}</option>
+                    ))}
+                  </select>
+                  <span className="text-parchment-muted">from ayah 1 up to ayah</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={ayahCount(partSurah)}
+                    value={partAyah}
+                    onChange={(e) => setPartAyah(Math.max(1, Math.min(ayahCount(partSurah), Number(e.target.value) || 1)))}
+                    className="h-10 w-20 rounded-xl border border-border bg-bg px-3"
+                  />
+                  <button
+                    onClick={() => {
+                      const full = partAyah >= ayahCount(partSurah);
+                      setClaims((c) => ({ ...c, [partSurah]: c[partSurah] ?? "solid" }));
+                      setUpTo(({ [partSurah]: _, ...rest }) => (full ? rest : { ...rest, [partSurah]: partAyah }));
+                      if (!visibleSurahs.includes(partSurah)) setShowAll(true);
+                    }}
+                    className="h-10 rounded-full bg-teal px-4 font-semibold text-bg"
+                  >
+                    Add
+                  </button>
+                </div>
+                {Object.keys(upTo).length === 1 && startSurah === null && (
+                  <p className="mt-2 text-xs text-teal">
+                    Your next sabaq will carry on in {SURAHS[Number(Object.keys(upTo)[0]) - 1]?.name} from ayah {Object.values(upTo)[0] + 1}.
+                  </p>
+                )}
+              </div>
+              <button onClick={() => (setClaims({}), setUpTo({}), go(1))} className="mt-6 flex items-center gap-2 self-start text-sm text-parchment-muted hover:text-teal">
                 <Sprout size={16} /> I&apos;m starting fresh
               </button>
             </>

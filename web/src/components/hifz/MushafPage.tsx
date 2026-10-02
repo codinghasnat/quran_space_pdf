@@ -17,16 +17,15 @@ export type MushafPageProps = {
   portion?: { words: PortionWord[]; state: PortionState; onTap: (index: number) => void };
   /** Read mode: tap a word to see it larger with its meaning. */
   glossOnTap?: boolean;
-  /** Eyes closed: the page dims; any tap is reported. */
-  dimmed?: boolean;
-  onAnyTap?: () => void;
+  /** Eyes closed: the page stays (covered) but takes on a quiet, inward look. */
+  eyesClosed?: boolean;
   /** Size the page to the screen height (laptop), like an open mushaf. */
   fit?: boolean;
   className?: string;
 };
 
 export default function MushafPage({
-  data, focus = null, glowLine = null, blur, portion, glossOnTap, dimmed, onAnyTap, fit = true, className = "",
+  data, focus = null, glowLine = null, blur, portion, glossOnTap, eyesClosed, fit = true, className = "",
 }: MushafPageProps) {
   const [gloss, setGloss] = useState<{ token: Token; x: number; y: number } | null>(null);
   const indexOf = new Map<string, number>();
@@ -36,12 +35,13 @@ export default function MushafPage({
 
   return (
     <div
-      className={`relative mx-auto max-w-full select-none overflow-hidden rounded-[22px] border border-border bg-surface shadow-[0_8px_40px_-12px_rgb(var(--teal)/0.25)] ${className}`}
+      className={`relative mx-auto max-w-full select-none overflow-hidden rounded-[22px] border bg-surface transition-shadow duration-700 ${
+        eyesClosed ? "border-teal/50 shadow-[0_0_0_4px_rgb(var(--teal)/0.12),0_0_60px_-6px_rgb(var(--teal)/0.45)]" : "border-border shadow-[0_8px_40px_-12px_rgb(var(--teal)/0.25)]"
+      } ${className}`}
       style={{
         aspectRatio: `${data.width} / ${data.height}`,
         ...(fit ? { height: "min(calc(100vh - 8.5rem), 1400px)", width: "auto" } : { width: "100%" }),
       }}
-      onClickCapture={dimmed && onAnyTap ? (e) => (e.stopPropagation(), onAnyTap()) : undefined}
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- static scans, sized by the wrapper */}
       <img
@@ -136,8 +136,8 @@ export default function MushafPage({
         </div>
       )}
 
-      {dimmed && (
-        <div className="absolute inset-0 flex items-start justify-center bg-bg/[0.97] backdrop-blur-sm transition-opacity duration-700" />
+      {eyesClosed && (
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgb(var(--teal)/0.10))]" />
       )}
     </div>
   );

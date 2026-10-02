@@ -9,7 +9,7 @@ import {
   activeLineKey, initialPortion, portionDone, portionResult, portionWords, reducePortion, type PortionAction, type PortionState,
 } from "@/lib/hifz/portion";
 import { lineId } from "@/lib/hifz/quran";
-import { recordEyesClosed, recordPortion } from "@/lib/hifz/record";
+import { recordPortion } from "@/lib/hifz/record";
 import { append, newId } from "@/lib/hifz/store";
 import { memorisedLineDays } from "@/lib/hifz/strength";
 import { useJourney, type Journey } from "@/lib/hifz/useJourney";
@@ -97,11 +97,15 @@ function Review({ stage, list, journey }: { stage: Stage; list: number[]; journe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portion]);
 
+  // Eyes closed: the covered page stays up; a word tapped open when stuck counts against the round
   const rate = (v: 1 | 2 | 3 | 4) => {
-    recordEyesClosed(stage, new Map([[page, byPage.get(page) ?? []]]), timer.takeLap(), v);
-    setResult({ clean: v >= 3, slips: v >= 3 ? 0 : 1 });
-    if (v >= 3) chime();
+    const r = portionResult(words, portion);
+    const rating = (r.peeked.length ? Math.min(v, 2) : v) as 1 | 2 | 3 | 4;
+    recordPortion(stage, "eyesClosed", r, timer.takeLap(), rating);
+    setResult({ clean: rating >= 3, slips: r.peeked.length || (rating >= 3 ? 0 : 1) });
+    if (rating >= 3) chime();
   };
+  const eyesPeeks = mode === "eyes" ? portion.marks.filter((m) => m === "peeked").length : 0;
 
   const next = () => {
     setResult(null);
@@ -124,7 +128,9 @@ function Review({ stage, list, journey }: { stage: Stage; list: number[]; journe
     if (mode === "covered") {
       if (k === " " || k === "enter") (e.preventDefault(), dispatch({ type: "check" }));
       else if (k === "z" || k === "backspace") dispatch({ type: "undo" });
-    } else if (["1", "2", "3", "4"].includes(k)) rate(Number(k) as 1 | 2 | 3 | 4);
+    } else if (["1", "2", "3", "4"].includes(k)) {
+      if (!(eyesPeeks > 0 && Number(k) >= 3)) rate(Number(k) as 1 | 2 | 3 | 4);
+    }
   });
 
   const activeKey = activeLineKey(words, portion);
@@ -193,9 +199,8 @@ function Review({ stage, list, journey }: { stage: Stage; list: number[]; journe
                   fit={pg.page === page}
                   focus={byPage.get(pg.page) ?? []}
                   glowLine={glow(pg.page)}
-                  portion={mode === "covered" && !result ? { words, state: portion, onTap: (i) => dispatch({ type: "tap", index: i }) } : undefined}
-                  dimmed={mode === "eyes" && !result}
-                  onAnyTap={() => rate(1)}
+                  portion={!result ? { words, state: portion, onTap: (i) => dispatch({ type: "tap", index: i }) } : undefined}
+                  eyesClosed={mode === "eyes" && !result}
                 />
                 <p className="mt-2 text-center text-xs text-parchment-muted">Page {pg.page}{pg.page !== page ? " · last line, to join the pages" : ""}</p>
               </div>
@@ -254,14 +259,22 @@ function Review({ stage, list, journey }: { stage: Stage; list: number[]; journe
               </>
             ) : (
               <>
-                <p className="mt-3 text-sm text-parchment-muted">Close your eyes and recite the page. Then, honestly:</p>
+                <p className="mt-3 text-sm text-parchment-muted">
+                  Close your eyes and recite the page. Stuck? Open them and tap the covered word you need; it&apos;s saved as a trigger word. Then, honestly:
+                </p>
+                {eyesPeeks > 0 && (
+                  <p className="mt-2 rounded-xl bg-hint/10 px-3 py-2 text-xs">
+                    {eyesPeeks} word{eyesPeeks === 1 ? "" : "s"} uncovered, so this round counts as Hard at best.
+                  </p>
+                )}
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   {RATINGS.map((r) => (
                     <button
                       key={r.v}
                       onClick={() => rate(r.v)}
+                      disabled={eyesPeeks > 0 && r.v >= 3}
                       title={r.hint}
-                      className={`flex h-14 flex-col items-center justify-center rounded-2xl border text-sm transition-colors ${
+                      className={`flex h-14 flex-col items-center justify-center rounded-2xl border text-sm transition-colors disabled:opacity-30 ${
                         r.v >= 3 ? "border-teal/30 hover:bg-teal/10" : "border-border hover:border-hint/60"
                       }`}
                     >

@@ -173,3 +173,16 @@ test("projection: calibrating for 30 days, then a cautious date after the likely
   const fresh = project(emptyData(DAY), idx, pageStates(emptyData(DAY), idx, DAY), DAY);
   assert.equal(fresh.calibrating, 30);
 });
+
+test("part of a surah can be claimed: the next sabaq continues after it", () => {
+  const idx = fixture();
+  const data = emptyData(DAY);
+  data.settings.direction = "forward";
+  data.settings.start = { page: 2, line: 1 };
+  data.profile.claims = { 2: "solid" };
+  data.profile.claimUpTo = { 2: 10 };
+  const states = pageStates(data, idx, DAY);
+  assert.equal(states.get(2)!.memorisedLines, 10);
+  const plan = planDay(data, idx, states, DAY);
+  assert.equal(plan.sabaq!.lines[0].a1, 11);
+});

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, BookOpenCheck, Flame, LayoutGrid, Settings2 } from "lucide-react";
+import { BarChart3, BookOpen, BookOpenCheck, Flame, LayoutGrid, Settings2 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import { addDays } from "@/lib/dates";
 import { useHifz } from "@/lib/hifz/store";
@@ -10,7 +10,8 @@ import { useToday } from "@/lib/hifz/useJourney";
 
 const NAV = [
   { href: "/today", label: "Today", icon: BookOpenCheck },
-  { href: "/mushaf", label: "Mushaf", icon: LayoutGrid },
+  { href: "/mushaf", label: "Mushaf", icon: BookOpen },
+  { href: "/progress", label: "Progress", icon: LayoutGrid },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
 

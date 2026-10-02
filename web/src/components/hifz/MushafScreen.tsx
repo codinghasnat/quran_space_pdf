@@ -24,7 +24,7 @@ export default function MushafScreen() {
   return (
     <AppShell>
       <div className="pt-8">
-        <h1 className="font-serif text-4xl">Your mushaf</h1>
+        <h1 className="font-serif text-4xl">Progress</h1>
         <p className="mt-1 text-parchment-muted">Every page, coloured by how well it&apos;s holding today.</p>
         <div className="mt-6">
           {journey ? (
@@ -42,7 +42,7 @@ export default function MushafScreen() {
               {triggers.map((t) => (
                 <Link
                   key={t.key}
-                  href={`/practice/${t.page}`}
+                  href={`/mushaf?page=${t.page}`}
                   className="inline-flex items-center gap-2 rounded-2xl border border-hint/30 bg-hint/[0.07] px-3.5 py-2 transition-colors hover:border-hint/60"
                 >
                   <WordText wordKey={t.key} page={t.page} />

@@ -143,7 +143,7 @@ export function HeatmapExplorer({
                   {juzPages(j + 1).map((p) => (
                     <Link
                       key={p}
-                      href={`/practice/${p}`}
+                      href={`/mushaf?page=${p}`}
                       onMouseEnter={() => setHover(`Page ${p} · ${pageTip(states.get(p), today)}`)}
                       onMouseLeave={() => setHover(null)}
                       className="transition-transform hover:z-10 hover:scale-125"
@@ -182,7 +182,7 @@ function JuzView({
         return (
           <Link
             key={p}
-            href={`/practice/${p}`}
+            href={`/mushaf?page=${p}`}
             onMouseEnter={() => onHover(`Page ${p} · ${pageTip(states.get(p), today)}`)}
             onMouseLeave={() => onHover(null)}
             className="group"
@@ -245,7 +245,7 @@ function SurahView({
         {ayahs.map(([a, { colour, page }]) => (
           <Link
             key={a}
-            href={`/practice/${page}`}
+            href={`/mushaf?page=${page}`}
             onMouseEnter={() =>
               onHover(`Ayah ${surah}:${a} · page ${page} · ${COLOUR_LABEL[colour]}${slips.get(`${surah}:${a}`) ? ` · ${slips.get(`${surah}:${a}`)} slip${slips.get(`${surah}:${a}`) === 1 ? "" : "s"} so far` : ""}`)
             }

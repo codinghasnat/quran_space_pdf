@@ -59,11 +59,17 @@ export function colourFor(R: number, lastSlips: number, memorised: boolean): Col
   return R >= STRONG ? "strong" : "okay";
 }
 
+/** The lines of a claimed surah that count as known: all of it, or the lines up to the last ayah known. */
+export function claimedLines(data: HifzData, index: QuranIndex, surah: number) {
+  const upTo = data.profile.claimUpTo?.[surah];
+  return (index.bySurah.get(surah) ?? []).filter((l) => !upTo || l.a2 <= upTo);
+}
+
 /** lineId -> the day that line was memorised (claimed at onboarding, or a settled sabaq). */
 export function memorisedLineDays(data: HifzData, index: QuranIndex): Map<string, string> {
   const out = new Map<string, string>();
   for (const surah of Object.keys(data.profile.claims)) {
-    for (const l of index.bySurah.get(Number(surah)) ?? []) out.set(lineId(l), data.profile.createdOn);
+    for (const l of claimedLines(data, index, Number(surah))) out.set(lineId(l), data.profile.createdOn);
   }
   for (const s of [...data.sabaqs].sort((a, b) => (a.day < b.day ? -1 : 1))) {
     if (!s.settled) continue;
@@ -78,7 +84,7 @@ const CLAIM_RANK: Record<Claim, number> = { forgotten: 0, rusty: 1, solid: 2 };
 export function pageClaims(data: HifzData, index: QuranIndex): Map<number, Claim> {
   const out = new Map<number, Claim>();
   for (const [surah, claim] of Object.entries(data.profile.claims)) {
-    for (const l of index.bySurah.get(Number(surah)) ?? []) {
+    for (const l of claimedLines(data, index, Number(surah))) {
       const prev = out.get(l.page);
       if (!prev || CLAIM_RANK[claim] < CLAIM_RANK[prev]) out.set(l.page, claim);
     }

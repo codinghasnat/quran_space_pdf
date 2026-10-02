@@ -1,9 +1,7 @@
-import { notFound } from "next/navigation";
-import FreePractice from "@/components/hifz/FreePractice";
+import { redirect } from "next/navigation";
 
+// Older links: practice now happens in the mushaf reader
 export default async function PracticePage({ params }: { params: Promise<{ page: string }> }) {
   const { page } = await params;
-  const n = Number(page);
-  if (!Number.isInteger(n) || n < 1 || n > 604) notFound();
-  return <FreePractice page={n} />;
+  redirect(`/mushaf?page=${Number(page) || 1}`);
 }

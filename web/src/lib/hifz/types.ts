@@ -77,6 +77,9 @@ export type Settings = {
   sabaqLines: number; // tuned
   coveredReps: number; // clean covered repetitions required (x), tuned
   eyesClosedReps: number; // clean eyes-closed rounds required
+  chunkLines: number; // the sabaq is learned in chunks of this many lines
+  chunkReps: number; // clean covered repetitions of each chunk on its own
+  linkReps: number; // clean repetitions joining a new chunk to everything before it
   reciter: string; // RootedQuran recitation key, e.g. "alfurqan:yasser-ad-dussary"
   dawrChunkPages: number;
 };
@@ -86,6 +89,7 @@ export type Profile = {
   onboarded: boolean;
   why: number | null; // index into WHY_REASONS
   claims: Record<number, Claim>; // surahs already memorised before starting, with how well
+  claimUpTo?: Record<number, number>; // surah -> last ayah known, when only part of it is memorised
   introSeen: boolean;
   hero?: { date: string; likely: string; setOn: string; reason: string | null };
 };
@@ -110,6 +114,9 @@ export const DEFAULT_SETTINGS: Settings = {
   sabaqLines: 7,
   coveredReps: 30,
   eyesClosedReps: 30,
+  chunkLines: 1,
+  chunkReps: 5,
+  linkReps: 3,
   reciter: "alfurqan:yasser-ad-dussary",
   dawrChunkPages: 3,
 };

@@ -71,7 +71,16 @@ export default function SettingsScreen() {
           <Row label="Lines per sabaq" hint={`${s.sabaqLines} lines`}>
             <Stepper value={s.sabaqLines} min={2} max={30} onChange={(v) => set("sabaqLines", v)} />
           </Row>
-          <Row label="Clean covered repetitions" hint="before eyes closed">
+          <Row label="Lines per piece" hint="the sabaq is learned a piece at a time">
+            <Stepper value={s.chunkLines} min={1} max={5} onChange={(v) => set("chunkLines", v)} />
+          </Row>
+          <Row label="Clean repetitions per piece" hint="each piece on its own">
+            <Stepper value={s.chunkReps} min={1} max={20} onChange={(v) => set("chunkReps", v)} />
+          </Row>
+          <Row label="Clean repetitions to join a piece" hint="from the start through the new piece">
+            <Stepper value={s.linkReps} min={1} max={20} onChange={(v) => set("linkReps", v)} />
+          </Row>
+          <Row label="Clean covered repetitions" hint="of the whole sabaq, before eyes closed">
             <Stepper value={s.coveredReps} min={1} max={60} onChange={(v) => set("coveredReps", v)} />
           </Row>
           <Row label="Clean eyes-closed rounds" hint="to settle the sabaq">
