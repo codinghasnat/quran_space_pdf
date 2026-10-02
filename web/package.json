@@ -6,7 +6,7 @@
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
-    "test": "tsx --test src/lib/*.test.ts"
+    "test": "tsx --test src/lib/hifz/*.test.ts"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

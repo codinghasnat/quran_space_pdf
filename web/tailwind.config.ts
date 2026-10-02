@@ -20,9 +20,16 @@ const config: Config = {
         border: "rgb(var(--border) / <alpha-value>)",
         stuck: "rgb(var(--stuck) / <alpha-value>)",
         hint: "rgb(var(--hint) / <alpha-value>)",
+        heat: {
+          strong: "rgb(var(--heat-strong) / <alpha-value>)",
+          okay: "rgb(var(--heat-okay) / <alpha-value>)",
+          weak: "rgb(var(--heat-weak) / <alpha-value>)",
+          blank: "rgb(var(--heat-blank) / <alpha-value>)",
+        },
       },
       fontFamily: {
         serif: ["Georgia", "Cambria", '"Times New Roman"', "serif"],
+        quran: ["UthmanicHafs", "Amiri", "Georgia", "serif"],
         sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"],
       },
     },
