@@ -27,21 +27,26 @@ export type MushafPageProps = {
 export default function MushafPage({
   data, focus = null, glowLine = null, blur, portion, glossOnTap, eyesClosed, fit = true, className = "",
 }: MushafPageProps) {
-  const [gloss, setGloss] = useState<{ token: Token; x: number; y: number } | null>(null);
+  const [gloss, setGloss] = useState<{ token: Token; x: number; y0: number; y1: number } | null>(null);
   const indexOf = new Map<string, number>();
   portion?.words.forEach((w, i) => {
     if (w.page === data.page) indexOf.set(w.token.key, i);
   });
 
   return (
+    // The outer box sizes the page; the frame inside clips the scan. The meaning card sits outside the frame so
+    // it's never cut off at the page's edges.
     <div
-      className={`relative mx-auto max-w-full select-none overflow-hidden rounded-[22px] border bg-surface transition-shadow duration-700 ${
-        eyesClosed ? "border-teal/50 shadow-[0_0_0_4px_rgb(var(--teal)/0.12),0_0_60px_-6px_rgb(var(--teal)/0.45)]" : "border-border shadow-[0_8px_40px_-12px_rgb(var(--teal)/0.25)]"
-      } ${className}`}
+      className={`relative mx-auto max-w-full select-none ${className}`}
       style={{
         aspectRatio: `${data.width} / ${data.height}`,
         ...(fit ? { height: "min(calc(100vh - 8.5rem), 1400px)", width: "auto" } : { width: "100%" }),
       }}
+    >
+    <div
+      className={`absolute inset-0 overflow-hidden rounded-[22px] border bg-surface transition-shadow duration-700 ${
+        eyesClosed ? "border-teal/50 shadow-[0_0_0_4px_rgb(var(--teal)/0.12),0_0_60px_-6px_rgb(var(--teal)/0.45)]" : "border-border shadow-[0_8px_40px_-12px_rgb(var(--teal)/0.25)]"
+      }`}
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- static scans, sized by the wrapper */}
       <img
@@ -118,27 +123,43 @@ export default function MushafPage({
                 key={`g-${token.key}`}
                 className="absolute rounded-md transition-colors hover:bg-teal/10"
                 style={{ left: pct(token.x0), width: pct(token.x1 - token.x0), top: pct(ln.y0), height: pct(ln.y1 - ln.y0) }}
-                onClick={() => setGloss({ token, x: (token.x0 + token.x1) / 2, y: ln.y0 })}
+                onClick={() => setGloss((g) => (g?.token.key === token.key ? null : { token, x: (token.x0 + token.x1) / 2, y0: ln.y0, y1: ln.y1 }))}
                 aria-label={`Meaning of ${token.en}`}
               />
             ),
           ),
         )}
 
-      {gloss && (
-        <div
-          className="pop-in absolute z-10 -translate-x-1/2 -translate-y-full rounded-2xl border border-teal/30 bg-surface/95 px-4 py-2.5 text-center shadow-xl backdrop-blur"
-          style={{ left: pct(Math.min(0.85, Math.max(0.15, gloss.x))), top: pct(Math.max(0.08, gloss.y)) }}
-          onClick={() => setGloss(null)}
-        >
-          <p className="font-quran text-3xl leading-tight text-parchment" dir="rtl">{gloss.token.ar}</p>
-          <p className="mt-1 text-sm text-teal">{gloss.token.en}</p>
-        </div>
-      )}
-
       {eyesClosed && (
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgb(var(--teal)/0.10))]" />
       )}
+    </div>
+
+      {gloss && (() => {
+        // Near an edge the card lines up with that edge instead of centring; near the top it opens below the word
+        const below = gloss.y0 < 0.14;
+        const align = gloss.x > 0.7 ? "right" : gloss.x < 0.3 ? "left" : "center";
+        return (
+          <div
+            className="absolute z-20 w-max max-w-[min(18rem,90vw)] cursor-pointer"
+            style={{
+              ...(align === "right"
+                ? { right: pct(Math.max(0, 1 - gloss.x - 0.06)) }
+                : align === "left"
+                  ? { left: pct(Math.max(0, gloss.x - 0.06)) }
+                  : { left: pct(gloss.x), transform: "translateX(-50%)" }),
+              ...(below ? { top: `calc(${pct(gloss.y1)} + 6px)` } : { bottom: `calc(${pct(1 - gloss.y0)} + 6px)` }),
+            }}
+            onClick={() => setGloss(null)}
+          >
+            {/* pop-in animates transform, so it lives on an inner box and doesn't fight the centring above */}
+            <div key={gloss.token.key} className="pop-in rounded-2xl border border-teal/30 bg-surface/95 px-4 py-2.5 text-center shadow-xl backdrop-blur">
+              <p className="font-quran text-3xl leading-tight text-parchment" dir="rtl">{gloss.token.ar}</p>
+              <p className="mt-1 text-sm text-teal">{gloss.token.en}</p>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

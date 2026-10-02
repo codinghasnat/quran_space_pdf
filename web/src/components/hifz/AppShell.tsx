@@ -36,7 +36,7 @@ export default function AppShell({ children, wide = false }: { children: React.R
     <div className="min-h-screen">
       <header className="sticky top-0 z-30 border-b border-border/70 bg-bg/80 backdrop-blur-xl">
         <div className={`mx-auto flex h-16 items-center gap-2 px-5 ${wide ? "max-w-[1280px]" : "max-w-[1100px]"}`}>
-          <Link href="/today" className="mr-4 flex items-center gap-2">
+          <Link href="/?landing" className="mr-4 flex items-center gap-2" title="About Hifz">
             <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal font-quran text-lg text-bg glow-soft">ح</span>
             <span className="font-serif text-xl tracking-tight">Hifz</span>
           </Link>

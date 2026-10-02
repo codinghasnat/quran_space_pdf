@@ -186,3 +186,19 @@ test("part of a surah can be claimed: the next sabaq continues after it", () => 
   const plan = planDay(data, idx, states, DAY);
   assert.equal(plan.sabaq!.lines[0].a1, 11);
 });
+
+test("ayah marks from the Progress page override claims and history", () => {
+  const idx = fixture();
+  const data = emptyData(DAY);
+  data.profile.ayahMarks = { "1:1": { c: "solid", day: DAY }, "1:2": { c: "solid", day: DAY } };
+  let st = pageStates(data, idx, DAY).get(1)!;
+  assert.equal(st.memorisedLines, 1, "line 1 holds ayahs 1-2, both marked");
+  data.profile.claims = { 1: "solid" };
+  data.profile.ayahMarks = { "1:4": { c: "none", day: DAY } };
+  st = pageStates(data, idx, DAY).get(1)!;
+  assert.equal(st.memorisedLines, 2, "the line with ayahs 3-5 drops out");
+  data.profile.claims = {};
+  data.sabaqs.push(sabaq(DAY, [[1, 1], [1, 2], [1, 3]]));
+  st = pageStates(data, idx, DAY).get(1)!;
+  assert.equal(st.memorisedLines, 2, "a settled sabaq line can be unmarked too");
+});

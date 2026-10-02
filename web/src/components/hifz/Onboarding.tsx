@@ -329,7 +329,7 @@ const SCENES = [
   { icon: Layers, title: "Keep it fresh with dawr", text: "Older pages rotate through, weakest first, and your heatmap fills in green." },
 ];
 
-function HowItWorks() {
+export function HowItWorks() {
   const [scene, setScene] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setScene((s) => (s + 1) % SCENES.length), 4200);

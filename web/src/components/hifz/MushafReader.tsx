@@ -9,7 +9,7 @@ import {
 } from "@/lib/hifz/portion";
 import { juzOfPage, lineId, TOTAL_PAGES } from "@/lib/hifz/quran";
 import { recordPortion } from "@/lib/hifz/record";
-import { memorisedLineDays } from "@/lib/hifz/strength";
+import { claimedAyahs, memorisedLineDays } from "@/lib/hifz/strength";
 import { useJourney } from "@/lib/hifz/useJourney";
 import { SURAHS } from "@/lib/surahs";
 import AppShell from "./AppShell";
@@ -152,12 +152,23 @@ function ReaderPage({
   const { pages } = usePages([page]);
   const data = pages?.[0] ?? null;
   const memorised = useMemo(() => memorisedLineDays(journey.data, journey.index), [journey.data, journey.index]);
+  const claimed = useMemo(() => claimedAyahs(journey.data, journey.index), [journey.data, journey.index]);
+  // A word is covered when its line is memorised, or its ayah is one you've marked as known
+  const knownWord = (key: string, line: number) =>
+    memorised.has(`${page}:${line}`) || claimed.has(key.split(":").slice(0, 2).join(":"));
   const known = useMemo(
-    () => (journey.index.byPage.get(page) ?? []).filter((l) => memorised.has(lineId(l))).map((l) => l.line),
-    [journey.index, memorised, page],
+    () =>
+      (journey.index.byPage.get(page) ?? [])
+        .filter((l) => memorised.has(lineId(l)) || Array.from({ length: l.a2 - l.a1 + 1 }, (_, i) => `${l.surah}:${l.a1 + i}`).some((k) => claimed.has(k)))
+        .map((l) => l.line),
+    [journey.index, memorised, claimed, page],
   );
   const byPage = useMemo(() => new Map([[page, known]]), [page, known]);
-  const words = useMemo(() => (data && known.length ? portionWords([data], byPage) : []), [data, byPage, known.length]);
+  const words = useMemo(
+    () => (data && known.length ? portionWords([data], byPage, (t, line) => knownWord(t.key, line)) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data, byPage, known.length, memorised, claimed],
+  );
   const [portion, dispatch] = useReducer((s: PortionState, a: PortionAction) => reducePortion(words, s, a), undefined, () => initialPortion([]));
   useEffect(() => dispatch({ type: "reset" }), [words]);
   const [note, setNote] = useState<string | null>(null);

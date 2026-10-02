@@ -27,14 +27,21 @@ export type PortionAction =
   | { type: "undo" }
   | { type: "reset" };
 
-/** Words of the chosen lines, pages in order, lines in order, words in reading order. Verse markers are skipped. */
-export function portionWords(pages: PageData[], lines: Map<number, number[]> | null): PortionWord[] {
+/** Words of the chosen lines, pages in order, lines in order, words in reading order. Verse markers are skipped.
+ *  `include` narrows it further, e.g. to the ayahs you know on a line you only partly know. */
+export function portionWords(
+  pages: PageData[],
+  lines: Map<number, number[]> | null,
+  include?: (token: Token, line: number, page: number) => boolean,
+): PortionWord[] {
   const out: PortionWord[] = [];
   for (const p of [...pages].sort((a, b) => a.page - b.page)) {
     const want = lines?.get(p.page);
     p.lines.forEach((ln, lineIdx) => {
       if (want && !want.includes(ln.line)) return;
-      for (const token of ln.words) if (token.type === "word") out.push({ page: p.page, lineIdx, line: ln.line, token });
+      for (const token of ln.words) {
+        if (token.type === "word" && (!include || include(token, ln.line, p.page))) out.push({ page: p.page, lineIdx, line: ln.line, token });
+      }
     });
   }
   return out;

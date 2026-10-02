@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { addDays, formatDay } from "@/lib/dates";
-import { pageStates, type Colour } from "@/lib/hifz/strength";
+import { memorisedLineDays, pageStates, type Colour } from "@/lib/hifz/strength";
 import { sabqiHealth } from "@/lib/hifz/tuning";
 import { useJourney, type Journey } from "@/lib/hifz/useJourney";
 import AppShell from "./AppShell";
@@ -38,13 +38,12 @@ function Body({ journey }: { journey: Journey }) {
     };
   }, [data, day]);
 
-  // Pages memorised (in lines / 15) by day since the start
+  // Pages memorised (in lines / 15) by day since the start, from the same line history the heatmap uses
   const growth = useMemo(() => {
     const byDay = new Map<string, number>();
-    for (const s of data.sabaqs) if (s.settled) byDay.set(s.day, (byDay.get(s.day) ?? 0) + s.lines.length);
-    const claimedLines = Object.keys(data.profile.claims).reduce((a, s) => a + (index.bySurah.get(Number(s))?.length ?? 0), 0);
+    for (const d of memorisedLineDays(data, index).values()) byDay.set(d < start ? start : d, (byDay.get(d < start ? start : d) ?? 0) + 1);
     const pts: { x: string; y: number }[] = [];
-    let acc = claimedLines;
+    let acc = 0;
     for (let d = start; d <= day; d = addDays(d, 1)) {
       acc += byDay.get(d) ?? 0;
       pts.push({ x: formatDay(d), y: acc / 15 });

@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { daysBetween, formatDay } from "@/lib/dates";
+import { useEffect, useMemo, useState } from "react";
+import { Pencil } from "lucide-react";
+import { daysBetween, formatDay, isoDay } from "@/lib/dates";
 import { JUZ_STARTS, juzPages, lineId, type QuranIndex } from "@/lib/hifz/quran";
-import { memorisedLineDays, type Colour, type PageState } from "@/lib/hifz/strength";
-import type { HifzData } from "@/lib/hifz/types";
+import { updateProfile } from "@/lib/hifz/store";
+import { claimedAyahs, memorisedLineDays, type Colour, type PageState } from "@/lib/hifz/strength";
+import type { AyahMark, Claim, HifzData } from "@/lib/hifz/types";
 import { SURAHS } from "@/lib/surahs";
 
 export const COLOUR_LABEL: Record<Colour, string> = {
@@ -200,6 +202,15 @@ function JuzView({
   );
 }
 
+type Brush = Claim | "none";
+const BRUSHES: { b: Brush; label: string; cls: string }[] = [
+  { b: "solid", label: "Solid", cls: "heat-strong text-bg" },
+  { b: "rusty", label: "Rusty", cls: "heat-weak text-parchment" },
+  { b: "forgotten", label: "Faded", cls: "bg-heat-weak/40 text-parchment" },
+  { b: "none", label: "Not memorised", cls: "heat-blank text-parchment/70" },
+];
+const brushClass = (b: Brush) => BRUSHES.find((x) => x.b === b)!.cls;
+
 function SurahView({
   surah, data, index, states, onHover,
 }: {
@@ -210,6 +221,10 @@ function SurahView({
   onHover: (s: string | null) => void;
 }) {
   const memorised = useMemo(() => memorisedLineDays(data, index), [data, index]);
+  const claimed = useMemo(() => claimedAyahs(data, index), [data, index]);
+  const [editing, setEditing] = useState(false);
+  const [brush, setBrush] = useState<Brush>("solid");
+  const [draft, setDraft] = useState<Record<string, AyahMark> | null>(null);
   const slips = useMemo(() => {
     const m = new Map<string, number>();
     for (const w of data.wordEvents) {
@@ -219,45 +234,112 @@ function SurahView({
     return m;
   }, [data.wordEvents, surah]);
 
-  // Each ayah takes the weakest colour of the memorised lines it sits on
+  // Each ayah: its page, whether it's known (you said so, or it sits on a memorised line), and that page's colour
   const ayahs = useMemo(() => {
-    const out = new Map<number, { colour: Colour; page: number }>();
+    const out = new Map<number, { colour: Colour; page: number; level: Brush }>();
     const rank: Record<Colour, number> = { blank: 0, weak: 1, okay: 2, strong: 3 };
     for (const l of index.bySurah.get(surah) ?? []) {
-      const c: Colour = memorised.has(lineId(l)) ? states.get(l.page)?.colour ?? "blank" : "blank";
       for (let a = l.a1; a <= l.a2; a++) {
+        const k = `${surah}:${a}`;
+        const claim = claimed.get(k)?.claim;
+        const known = !!claim || memorised.has(lineId(l));
+        const c: Colour = known ? states.get(l.page)?.colour ?? "weak" : "blank";
+        const level: Brush = claim ?? (known ? "solid" : "none");
         const prev = out.get(a);
-        if (!prev || (c !== "blank" && (prev.colour === "blank" || rank[c] < rank[prev.colour])) ) out.set(a, { colour: c, page: l.page });
+        if (!prev || (c !== "blank" && (prev.colour === "blank" || rank[c] < rank[prev.colour]))) out.set(a, { colour: c, page: l.page, level });
       }
     }
     return [...out.entries()].sort((a, b) => a[0] - b[0]);
-  }, [index, surah, memorised, states]);
+  }, [index, surah, memorised, claimed, states]);
+
+  // Painting: press on an ayah and drag across others; saved when you let go
+  const paint = (a: number) => setDraft((d) => ({ ...(d ?? {}), [`${surah}:${a}`]: { c: brush, day: isoDay() } }));
+  const commit = (marks: Record<string, AyahMark> | null) => {
+    if (marks && Object.keys(marks).length) updateProfile((p) => ({ ...p, ayahMarks: { ...(p.ayahMarks ?? {}), ...marks } }));
+    setDraft(null);
+  };
+  useEffect(() => {
+    if (!draft) return;
+    const up = () => commit(draft);
+    window.addEventListener("mouseup", up);
+    return () => window.removeEventListener("mouseup", up);
+  }, [draft]); // eslint-disable-line react-hooks/exhaustive-deps
+  const markAll = () => commit(Object.fromEntries(ayahs.map(([a]) => [`${surah}:${a}`, { c: brush, day: isoDay() }])));
 
   const info = SURAHS[surah - 1];
+  const known = ayahs.filter(([a, x]) => (draft?.[`${surah}:${a}`]?.c ?? x.level) !== "none").length;
   return (
-    <div>
-      <div className="mb-4 flex items-baseline gap-3">
+    <div className="select-none">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <h3 className="font-serif text-2xl">{info?.name}</h3>
         <span className="font-quran text-2xl text-parchment-muted">{info?.arabic}</span>
-        <span className="text-sm text-parchment-muted">{ayahs.length} ayahs</span>
+        <span className="text-sm text-parchment-muted">{known} of {ayahs.length} ayahs known</span>
+        <div className="flex-1" />
+        <button
+          onClick={() => setEditing((e) => !e)}
+          className={`flex h-9 items-center gap-2 rounded-full px-4 text-sm transition-colors ${editing ? "bg-teal text-bg glow-soft" : "border border-border hover:border-teal/50"}`}
+        >
+          <Pencil size={14} /> {editing ? "Done" : "Edit what I know"}
+        </button>
       </div>
+
+      {editing && (
+        <div className="pop-in mb-5 flex flex-wrap items-center gap-2 rounded-2xl border border-teal/30 bg-teal/[0.05] p-3">
+          <span className="px-1 text-xs text-parchment-muted">Paint with</span>
+          {BRUSHES.map((x) => (
+            <button
+              key={x.b}
+              onClick={() => setBrush(x.b)}
+              className={`flex h-8 items-center gap-2 rounded-full px-3 text-xs transition-all ${brush === x.b ? "ring-2 ring-teal ring-offset-2 ring-offset-bg" : ""} border border-border bg-surface`}
+            >
+              <span className={`h-3 w-3 rounded-[4px] ${x.cls}`} /> {x.label}
+            </button>
+          ))}
+          <div className="flex-1" />
+          <button onClick={markAll} className="h-8 rounded-full bg-surface px-3 text-xs hover:text-teal">
+            Whole surah: {BRUSHES.find((x) => x.b === brush)!.label.toLowerCase()}
+          </button>
+          <p className="w-full px-1 text-xs text-parchment-muted">
+            Click an ayah, or press and drag across several. The mushaf covers exactly what you mark as known.
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-1.5" dir="rtl">
-        {ayahs.map(([a, { colour, page }]) => (
-          <Link
-            key={a}
-            href={`/mushaf?page=${page}`}
-            onMouseEnter={() =>
-              onHover(`Ayah ${surah}:${a} · page ${page} · ${COLOUR_LABEL[colour]}${slips.get(`${surah}:${a}`) ? ` · ${slips.get(`${surah}:${a}`)} slip${slips.get(`${surah}:${a}`) === 1 ? "" : "s"} so far` : ""}`)
-            }
-            onMouseLeave={() => onHover(null)}
-            className={`relative flex h-9 w-9 items-center justify-center rounded-lg text-[11px] tabular-nums transition-transform hover:scale-110 ${HEAT_CLASS[colour]} ${
-              colour === "strong" ? "text-bg" : "text-parchment/70"
-            }`}
-          >
-            {a}
-            {slips.get(`${surah}:${a}`) ? <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-stuck" /> : null}
-          </Link>
-        ))}
+        {ayahs.map(([a, { colour, page, level }]) => {
+          const k = `${surah}:${a}`;
+          const tip = `Ayah ${k} · page ${page} · ${COLOUR_LABEL[colour]}${slips.get(k) ? ` · ${slips.get(k)} slip${slips.get(k) === 1 ? "" : "s"} so far` : ""}`;
+          if (editing) {
+            const shown = draft?.[k]?.c ?? level;
+            return (
+              <button
+                key={a}
+                onMouseDown={(e) => (e.preventDefault(), paint(a))}
+                onMouseEnter={() => (draft ? paint(a) : onHover(tip))}
+                onMouseLeave={() => onHover(null)}
+                className={`relative flex h-9 w-9 items-center justify-center rounded-lg text-[11px] tabular-nums transition-all hover:scale-110 ${brushClass(shown)} ${
+                  draft?.[k] ? "ring-2 ring-teal/60" : ""
+                }`}
+              >
+                {a}
+              </button>
+            );
+          }
+          return (
+            <Link
+              key={a}
+              href={`/mushaf?page=${page}`}
+              onMouseEnter={() => onHover(tip)}
+              onMouseLeave={() => onHover(null)}
+              className={`relative flex h-9 w-9 items-center justify-center rounded-lg text-[11px] tabular-nums transition-transform hover:scale-110 ${HEAT_CLASS[colour]} ${
+                colour === "strong" ? "text-bg" : "text-parchment/70"
+              }`}
+            >
+              {a}
+              {slips.get(k) ? <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-stuck" /> : null}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

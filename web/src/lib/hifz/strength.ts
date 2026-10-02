@@ -1,5 +1,5 @@
 import { daysBetween } from "../dates";
-import { lineId, type QuranIndex } from "./quran";
+import { lineId, type LineInfo, type QuranIndex } from "./quran";
 import type { Claim, HifzData, Recitation } from "./types";
 
 // Retention model. Each memorised page has a stability S in days, and the chance of reciting it cleanly
@@ -59,34 +59,61 @@ export function colourFor(R: number, lastSlips: number, memorised: boolean): Col
   return R >= STRONG ? "strong" : "okay";
 }
 
-/** The lines of a claimed surah that count as known: all of it, or the lines up to the last ayah known. */
-export function claimedLines(data: HifzData, index: QuranIndex, surah: number) {
-  const upTo = data.profile.claimUpTo?.[surah];
-  return (index.bySurah.get(surah) ?? []).filter((l) => !upTo || l.a2 <= upTo);
+const ayahKey = (surah: number, ayah: number) => `${surah}:${ayah}`;
+
+/** Ayahs you've said you know ("surah:ayah" -> how well, and since when): onboarding claims, then your edits. */
+export function claimedAyahs(data: HifzData, index: QuranIndex): Map<string, { claim: Claim; day: string }> {
+  const out = new Map<string, { claim: Claim; day: string }>();
+  for (const [surah, claim] of Object.entries(data.profile.claims)) {
+    const upTo = data.profile.claimUpTo?.[Number(surah)];
+    const last = index.bySurah.get(Number(surah))?.at(-1)?.a2 ?? 0;
+    for (let a = 1; a <= (upTo ?? last); a++) out.set(ayahKey(Number(surah), a), { claim, day: data.profile.createdOn });
+  }
+  for (const [k, m] of Object.entries(data.profile.ayahMarks ?? {})) {
+    if (m.c === "none") out.delete(k);
+    else out.set(k, { claim: m.c, day: m.day });
+  }
+  return out;
 }
 
-/** lineId -> the day that line was memorised (claimed at onboarding, or a settled sabaq). */
+const lineAyahs = (l: LineInfo) => Array.from({ length: l.a2 - l.a1 + 1 }, (_, i) => ayahKey(l.surah, l.a1 + i));
+
+/** lineId -> the day that line was memorised: every ayah on it claimed, or a settled sabaq (unless you've since
+ *  marked one of its ayahs as not memorised). */
 export function memorisedLineDays(data: HifzData, index: QuranIndex): Map<string, string> {
+  const claimed = claimedAyahs(data, index);
+  const unmarked = new Set(Object.entries(data.profile.ayahMarks ?? {}).filter(([, m]) => m.c === "none").map(([k]) => k));
   const out = new Map<string, string>();
-  for (const surah of Object.keys(data.profile.claims)) {
-    for (const l of claimedLines(data, index, Number(surah))) out.set(lineId(l), data.profile.createdOn);
+  if (claimed.size) {
+    for (const l of index.lines) {
+      const days = lineAyahs(l).map((k) => claimed.get(k)?.day);
+      if (days.every(Boolean)) out.set(lineId(l), days.reduce((a, b) => (a! > b! ? a : b))!);
+    }
   }
+  const byId = new Map(index.lines.map((l) => [lineId(l), l]));
   for (const s of [...data.sabaqs].sort((a, b) => (a.day < b.day ? -1 : 1))) {
     if (!s.settled) continue;
-    for (const l of s.lines) if (!out.has(lineId(l))) out.set(lineId(l), s.day);
+    for (const ref of s.lines) {
+      const l = byId.get(lineId(ref));
+      if (!l || out.has(lineId(l)) || lineAyahs(l).some((k) => unmarked.has(k))) continue;
+      out.set(lineId(l), s.day);
+    }
   }
   return out;
 }
 
 const CLAIM_RANK: Record<Claim, number> = { forgotten: 0, rusty: 1, solid: 2 };
 
-/** A page's claim at onboarding: the weakest claim among the surahs on it. */
+/** A page's claim: the weakest claim among the ayahs on it that you've said you know. */
 export function pageClaims(data: HifzData, index: QuranIndex): Map<number, Claim> {
+  const claimed = claimedAyahs(data, index);
   const out = new Map<number, Claim>();
-  for (const [surah, claim] of Object.entries(data.profile.claims)) {
-    for (const l of claimedLines(data, index, Number(surah))) {
+  for (const l of index.lines) {
+    for (const k of lineAyahs(l)) {
+      const c = claimed.get(k)?.claim;
+      if (!c) continue;
       const prev = out.get(l.page);
-      if (!prev || CLAIM_RANK[claim] < CLAIM_RANK[prev]) out.set(l.page, claim);
+      if (!prev || CLAIM_RANK[c] < CLAIM_RANK[prev]) out.set(l.page, c);
     }
   }
   return out;

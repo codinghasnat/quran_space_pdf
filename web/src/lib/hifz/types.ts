@@ -84,12 +84,16 @@ export type Settings = {
   dawrChunkPages: number;
 };
 
+/** Your own say-so about an ayah; "none" means not memorised, whatever the history says. */
+export type AyahMark = { c: Claim | "none"; day: string };
+
 export type Profile = {
   createdOn: string;
   onboarded: boolean;
   why: number | null; // index into WHY_REASONS
   claims: Record<number, Claim>; // surahs already memorised before starting, with how well
   claimUpTo?: Record<number, number>; // surah -> last ayah known, when only part of it is memorised
+  ayahMarks?: Record<string, AyahMark>; // "surah:ayah" -> what you've said you know, edited on the Progress page
   introSeen: boolean;
   hero?: { date: string; likely: string; setOn: string; reason: string | null };
 };
